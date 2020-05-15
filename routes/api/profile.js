@@ -83,7 +83,7 @@ router.post(
         if (instagram) profileFields.social.instagram = instagram;
         if (linkedin) profileFields.social.linkedin = linkedin;
 
-        console.log('[POST][/api/profile]', profileFields);
+        //console.log('[POST][/api/profile]', profileFields);
 
         try {
             let profile = await Profile.findOne({ user: req.user.id });
@@ -107,5 +107,21 @@ router.post(
         }
     }
 );
+
+// @route   GET api/profile
+// @desc    get all profiles
+// @access  public
+router.get('/', async (req, res) => {
+    try {
+        const profiles = await Profile.find().populate('user', [
+            'name',
+            'avatar',
+        ]);
+        res.json(profiles);
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).send('Internal server error');
+    }
+});
 
 module.exports = router;
