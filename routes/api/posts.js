@@ -110,4 +110,83 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
+// @route   PUT api/posts/likes/:id
+// @desc    like a post
+// @access  private
+router.put('/likes/:id', auth, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const post = await Post.findById(id);
+        if (!post)
+            return res
+                .status(404)
+                .json({ errors: [{ msg: 'Post not found' }] });
+
+        const isAlreadyLiked =
+            post.likes.filter(like => like.user.toString() === req.user.id)
+                .length > 0;
+
+        if (isAlreadyLiked) {
+            return res
+                .status(400)
+                .json({ errors: [{ msg: 'Post already liked' }] });
+        }
+
+        post.likes.unshift({
+            user: req.user.id,
+        });
+        await post.save();
+
+        return res.json(post.likes);
+    } catch (error) {
+        console.error(error.message);
+        if (error.kind === 'ObjectId')
+            return res.status(404).json({
+                errors: [{ msg: 'Post not found' }],
+            });
+        return res.status(500).send('Internal server error');
+    }
+});
+
+// @route   DELETE api/posts/likes/:id
+// @desc    unlike a post
+// @access  private
+router.delete('/likes/:id', auth, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const post = await Post.findById(id);
+        if (!post)
+            return res
+                .status(404)
+                .json({ errors: [{ msg: 'Post not found' }] });
+
+        const isAlreadyLiked =
+            post.likes.filter(like => like.user.toString() === req.user.id)
+                .length > 0;
+
+        if (!isAlreadyLiked) {
+            return res
+                .status(400)
+                .json({ errors: [{ msg: 'Post has not yet been liked' }] });
+        }
+
+        post.likes = post.likes.reduce((accumulator, current) => {
+            if (current.user.toString() !== req.user.id)
+                accumulator.push(current);
+            return accumulator;
+        }, []);
+
+        await post.save();
+
+        return res.json(post.likes);
+    } catch (error) {
+        console.error(error.message);
+        if (error.kind === 'ObjectId')
+            return res.status(404).json({
+                errors: [{ msg: 'Post not found' }],
+            });
+        return res.status(500).send('Internal server error');
+    }
+});
+
 module.exports = router;
