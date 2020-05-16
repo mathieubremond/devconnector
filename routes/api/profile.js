@@ -256,4 +256,90 @@ router.delete('/experience/:experience_id', auth, async (req, res) => {
     }
 });
 
+// @route   PUT /api/profile/eduction
+// @desc    add profile eduction
+// @access  private
+router.put(
+    '/education',
+    [
+        auth,
+        [
+            check('school', 'schoole is required').not().isEmpty(),
+            check('degree', 'degreeany is required').not().isEmpty(),
+            check('fieldofstudy', 'fieldofstudy is required').not().isEmpty(),
+            check('from', 'from date is required').not().isEmpty(),
+        ],
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(500).json({ errors: [{ msg: errors.array() }] });
+        }
+
+        const {
+            school,
+            degree,
+            fieldofstudy,
+            from,
+            to,
+            current,
+            description,
+        } = req.body;
+
+        const newEducation = {
+            school,
+            degree,
+            fieldofstudy,
+            from,
+            to,
+            current,
+            description,
+        };
+
+        try {
+            const userId = req.user.id;
+            const profile = await Profile.findOne({ user: userId });
+            if (!profile)
+                return res
+                    .status(404)
+                    .json({ errors: [{ msg: 'No profile found' }] });
+            profile.education.unshift(newEducation);
+            await profile.save();
+            return res.json(profile);
+        } catch (error) {
+            console.error(error.message);
+            return res.status(500).send('Internal server error');
+        }
+    }
+);
+
+// @route   DELETE /api/profile/education/:education_id
+// @desc    delete profile education from profile
+// @access  private
+router.delete('/education/:education_id', auth, async (req, res) => {
+    const id = req.params.education_id;
+    const userId = req.user.id;
+
+    try {
+        const profile = await Profile.findOne({ user: userId });
+        if (!profile)
+            return res
+                .status(404)
+                .json({ errors: [{ msg: 'No profile found' }] });
+
+        // We iterate through the array and remove the item with an id equal
+        // to the one passed in the request body
+        profile.education = profile.education.reduce((accumulator, current) => {
+            if (current._id.equals(id)) accumulator.push(current);
+            return accumulator;
+        }, []);
+
+        await profile.save();
+        return res.json(profile);
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).send('Internal server error');
+    }
+});
+
 module.exports = router;
