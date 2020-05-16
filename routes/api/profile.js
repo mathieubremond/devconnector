@@ -124,4 +124,104 @@ router.get('/', async (req, res) => {
     }
 });
 
+// @route   GET api/profile/user/:user_id
+// @desc    get a user's profile by user id
+// @access  public
+router.get('/user/:user_id', async (req, res) => {
+    try {
+        const profile = await Profile.findOne({
+            user: req.params.user_id,
+        }).populate('user', ['name', 'avatar']);
+        if (!profile) {
+            return res.status(404).json({
+                errors: [{ msg: 'Profile not found' }],
+            });
+        }
+        return res.json(profile);
+    } catch (error) {
+        console.error(error.message);
+        if (error.kind === 'ObjectId')
+            return res.status(404).json({
+                errors: [{ msg: 'Profile not found' }],
+            });
+        return res.status(500).send('Internal server error');
+    }
+});
+
+// @route   DELETE api/profile/user/:user_id
+// @desc    delete profile, user and post
+// @access  private
+router.delete('/', auth, async (req, res) => {
+    try {
+        // @todo remove user's posts
+
+        // Remove the logged in user's profile
+        await Profile.findOneAndRemove({ user: req.user.id });
+
+        // Remove the current logged in user
+        await User.findOneAndRemove({ _id: req.user.id });
+
+        return res.json({ msg: 'User deleted' });
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).send('Internal server error');
+    }
+});
+
+// @route   PUT /api/profile/experience
+// @desc    update/add profile experience
+// @access  private
+router.put(
+    '/experience',
+    [
+        auth,
+        [
+            check('title', 'Title is required').not().isEmpty(),
+            check('company', 'Company is required').not().isEmpty(),
+            check('from', 'From date is required').not().isEmpty(),
+        ],
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(500).json({ errors: [{ msg: errors.array() }] });
+        }
+
+        const {
+            title,
+            company,
+            from,
+            location,
+            to,
+            current,
+            description,
+        } = req.body;
+
+        const newExperience = {
+            title,
+            company,
+            to,
+            from,
+            location,
+            current,
+            description,
+        };
+
+        try {
+            const userId = req.user.id;
+            const profile = await Profile.findOne({ user: userId });
+            if (!profile)
+                return res
+                    .status(404)
+                    .json({ errors: [{ msg: 'No profile found' }] });
+            profile.experience.unshift(newExperience);
+            await profile.save();
+            return res.json(profile);
+        } catch (error) {
+            console.error(error.message);
+            return res.status(500).send('Internal server error');
+        }
+    }
+);
+
 module.exports = router;
